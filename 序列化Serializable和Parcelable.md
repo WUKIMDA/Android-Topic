@@ -1,10 +1,10 @@
 ##Activity之间传递对象/对象集合==>Serializable接口/Parcelable接口
 
-- 为什么要了解序列化？
+- 为什么要了解序列化？(需要传递)
 >
 	—— 进行Android开发的时候，无法将对象的引用传给Activities或者Fragments，我们需要将这些对象放到一个Intent或者Bundle里面，然后再传递。
 
-- 什么是序列化
+- 什么是序列化(把对象变成可以存储和可以传输的状态)
 >
 	—— 序列化，表示将一个对象转换成可存储或可传输的状态。序列化后的对象可以在网络上进行传输，也可以存储到本地。
 
@@ -26,6 +26,9 @@
 	序列化是将对象分割成一个个属性小块储存到文件中, 然后再读取. 比如游戏的进度储存就是用序列化.
 
 ####Serializable接口和Parcelable接口的区别和使用
+	[1]Serializable是给对象打了一个标记，系统会自动将其序列化。//简单
+	[2]Parcelable需要在类中添加一个静态成员变量CREATOR，这个变量需要实现 Parcelable.Creator 接口   //复杂
+
 	传递:( 对象序列化到本地建议用Serializable接口,  如果是应用内传递用Parcelable接口 )
 		传递的对象要实现Serializable接口或者Parcelable接口
 		=========>然后intent.putExtra(String key,Serializable value)
@@ -41,3 +44,59 @@
 
 	
 
+####Parcelable内存序列化的方法分析
+	public interface Parcelable{
+		//内容描述接口，基本不用管
+		public int describeContents();
+
+		//写入接口函数，打包
+		public void writeToParcel(Parcel dest, int flags);
+
+		//读取接口，目的是要从Parcel中构造一个实现了 Parcelable的类的实例处理。因为实现类在这
+		里还是不可知的，所以需要用到模板的方式，继承类名通过模板参数传入
+
+		//为了能够实现模板参数的传入，这里定义Creator嵌入接口 , 内含两个接口函数分别返回单个和
+		多个继承类实例
+		public interface Creator<T>{
+			public T createFromParcel(Parcel source);
+			public T[] newArray(int size);
+		}
+	}
+
+
+####实现Parcelable步骤
+	1）implements Parcelable
+
+	2）重写writeToParcel方法，将你的对象序列化为一个Parcel对象，即：将类的数据写入外部提供的Parcel中，打包需要传递的数据到Parcel容器保存，以便从 Parcel容器获取数据
+
+	3）重写describeContents方法，内容接口描述，默认返回0就可以
+
+	4）实例化静态内部对象CREATOR实现接口 Parcelable.Creator
+	public static final Parcelable.Creator<T> CREATOR
+
+	具体实现:
+		public class MyParcelable implements Parcelable {
+			private int mData;
+		
+			public int describeContents() {
+				return 0;
+			}
+		
+			public void writeToParcel(Parcel out, int flags) {
+				out.writeInt(mData);
+			}
+		
+			public static final Parcelable.Creator<MyParcelable> CREATOR = new Parcelable.Creator<MyParcelable>() {
+				public MyParcelable createFromParcel(Parcel in) {
+					return new MyParcelable(in);
+				}
+		
+				public MyParcelable[] newArray(int size) {
+					return new MyParcelable[size];
+				}
+			};
+		
+			private MyParcelable(Parcel in) {
+				mData = in.readInt();
+			}
+		}
